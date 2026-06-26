@@ -1,0 +1,18 @@
+# ── 보안: OAuth 클라이언트 시크릿 (절대 커밋 금지) ──
+Google oAuth ID*.txt
+*.secret
+.env
+
+# ── 보안: 고객사 코드명·실제 캘린더 ID·클라이언트 ID가 담긴 내부 문서 ──
+*.docx
+
+# ── 의존성 / 빌드 산출물 ──
+node_modules/
+dist/
+*.zip
+
+# ── 에디터 / 도구 ──
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOP 캘린더 자동 등록</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="label">Google Calendar · Auto Import</div>
+    <h1>표 붙여넣기 → 캘린더 자동 등록</h1>
+    <p>Date / Datahall / System·Equipment 컬럼을 읽어 Google Calendar에 자동 등록합니다</p>
+  </header>
+
+  <div class="step-indicator">
+    <div class="step-pip active" id="pip1" onclick="goToStep(1)"><div class="pip-circle">1</div></div>
+    <div class="pip-line" id="line1"></div>
+    <div class="step-pip locked" id="pip2" onclick="goToStep(2)"><div class="pip-circle">2</div></div>
+    <div class="pip-line" id="line2"></div>
+    <div class="step-pip locked" id="pip3" onclick="goToStep(3)"><div class="pip-circle">3</div></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step-card active" id="step1">
+    <div class="step-header">
+      <div>
+        <div class="step-num">STEP 01 / 03 — Google 인증</div>
+        <h2>🔑 OAuth 2.0 Client ID 입력</h2>
+      </div>
+      <span id="step1DoneBadge" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--success);">✓ 인증 완료</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <input type="text" id="clientId" placeholder="XXXXXXXX.apps.googleusercontent.com" />
+      <button class="btn-ghost" id="clearSavedBtn" onclick="clearSavedId()" style="display:none;">삭제</button>
+    </div>
+    <div class="input-hint" style="margin-bottom:16px;">
+      <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
+      → APIs &amp; Services → Credentials → OAuth 2.0 Client ID<br>
+      <span style="color:var(--accent);">※ 승인된 JavaScript 출처에 <strong>http://localhost:8765</strong> 가 등록되어 있어야 합니다.</span>
+      &nbsp;|&nbsp; <span id="savedHint" style="color:var(--success);display:none;">💾 저장된 ID 불러옴</span>
+    </div>
+    <div id="step1Buttons">
+      <button class="btn btn-primary" onclick="initGoogleAuth()">Google 로그인 →</button>
+    </div>
+    <div id="authStatus"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-card locked" id="step2">
+    <div class="step-header">
+      <div>
+        <div class="step-num">STEP 02 / 03 — 표 입력</div>
+        <h2>📋 표 붙여넣기 또는 파일 드롭</h2>
+      </div>
+      <button class="btn-back" onclick="goToStep(1)">← 로그인으로</button>
+    </div>
+
+    <div class="label-row">
+      <label>캘린더</label>
+      <select id="labelSelect" onchange="onLabelChange()" style="max-width:200px;">
+        <option value="캘린더1" selected>캘린더 1</option>
+        <option value="캘린더2">캘린더 2</option>
+        <option value="캘린더3">캘린더 3</option>
+        <option value="캘린더4">캘린더 4</option>
+        <option value="캘린더5">캘린더 5</option>
+        <option value="Tasks">Tasks</option>
+        <option value="생일">생일</option>
+      </select>
+    </div>
+
+    <div id="calIdWrap" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="text" id="calIdInput" placeholder="캘린더 ID (예: yourcalendar@gmail.com)" style="margin-bottom:0;" />
+        <button class="btn-ghost" onclick="saveCalId()">저장</button>
+      </div>
+      <div class="input-hint" style="margin-top:6px;">
+        Google Calendar → 설정 → 캘린더 이름 → 캘린더 통합 → <strong>캘린더 ID</strong> 복사
+        &nbsp;|&nbsp; <span id="calIdSavedHint" style="color:var(--success);display:none;">💾 저장됨</span>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>방법 1:</strong> 표 전체 선택(Ctrl+A) → 복사(Ctrl+C) → 아래 박스 클릭 후 Ctrl+V<br>
+      <strong>방법 2:</strong> .csv / .txt / .tsv 파일을 아래 박스에 드래그&amp;드롭<br>
+      <strong>인식 컬럼:</strong> Date, Datahall, System / Equipment &nbsp;|&nbsp; <strong>무시:</strong> No., Description<br>
+      <strong>월간 범위(1일~말일):</strong> 토·일·한국 공휴일 제외하고 평일만 개별 등록
+    </div>
+
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-overlay">
+        <div class="drop-icon">⬇</div>
+        <div class="drop-label">파일을 여기에 놓으세요</div>
+      </div>
+      <textarea id="pasteArea" spellcheck="false" placeholder="여기에 Ctrl+V 붙여넣기  또는  파일을 드래그&드롭 하세요..."></textarea>
+    </div>
+
+    <div id="fileInfo" class="file-info" style="display:none;"></div>
+    <div class="parse-error" id="parseError"></div>
+
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="parseTable()">표 파싱 →</button>
+      <button class="btn btn-secondary" onclick="clearPaste()">초기화</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step-card locked" id="step3">
+    <div class="step-header">
+      <div>
+        <div class="step-num">STEP 03 / 03 — 확인 및 등록</div>
+        <h2>✅ 파싱된 일정 확인 <span class="count-badge" id="eventCount">0</span></h2>
+      </div>
+      <button class="btn-back" onclick="goToStep(2)">← 표 수정하기</button>
+    </div>
+
+    <div id="calTargetInfo" class="info-box" style="margin-bottom:14px;"></div>
+
+    <div class="event-row header-row">
+      <div>Date</div>
+      <div>Datahall</div>
+      <div>System / Equipment</div>
+    </div>
+    <div class="event-grid" id="eventGrid"></div>
+
+    <hr class="divider">
+    <button class="btn btn-primary" id="registerBtn" onclick="startRegistration()">▶ Google 캘린더에 등록</button>
+
+    <div class="progress-wrap" id="progressWrap" style="display:none;"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-text" id="progressText" style="display:none;"></div>
+    <div class="log-box" id="logBox" style="display:none;margin-top:14px;"></div>
+
+    <div class="summary-stats" id="summaryStats" style="display:none;">
+      <div class="stat-box"><div class="stat-num" id="statOk" style="color:var(--success)">0</div><div class="stat-label">등록 성공</div></div>
+      <div class="stat-box"><div class="stat-num" id="statErr" style="color:var(--danger)">0</div><div class="stat-label">등록 실패</div></div>
+      <div class="stat-box"><div class="stat-num" id="statTotal" style="color:var(--accent)">0</div><div class="stat-label">전체 일정</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/holidays.js"></script>
+<script src="js/state.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/parse.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

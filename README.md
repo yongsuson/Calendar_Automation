@@ -98,6 +98,12 @@ npm run build-win
 
 ## 업데이트 히스토리
 
+### v1.3 — Description 'Monthly' 자동 반영 (2026-07-02)
+- 표의 **Description 컬럼에 'Monthly'** 가 포함되어 있으면, 해당 작업의 장비명 뒤에 `Monthly`를 붙여 등록
+  (예: 장비 `CRAC` + Description에 Monthly → 캘린더에 **`CRAC Monthly`** 로 등록)
+- 대소문자 무시, 이미 `Monthly`가 붙어 있으면 중복으로 붙이지 않음
+- 탭 형식 · 메일 줄 형식 · **PDF** 세 입력 경로 모두 적용 (기존에 무시하던 Description 컬럼을 읽도록 개선)
+
 ### v1.2 — 코드 구조 리팩터링 (2026-06-26)
 - 단일 `index.html`에 뭉쳐 있던 CSS/JS를 역할별 모듈로 분리
   (`css/styles.css`, `js/holidays.js · state.js · calendar.js · parse.js · ui.js · app.js`)

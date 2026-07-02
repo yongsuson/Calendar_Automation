@@ -97,7 +97,7 @@ async function parsePdfToText(file) {
     return initRows.map(r => r.sort((a,b) => a.x-b.x).map(i => i.text).join('\t')).join('\n');
   }
 
-  const anchors = noItems.map(n => ({ y: n.y, dateParts: [], hall: [], equip: [] }));
+  const anchors = noItems.map(n => ({ y: n.y, dateParts: [], hall: [], equip: [], desc: [] }));
 
   // 4. 모든 데이터 아이템을 Y 거리 기준으로 가장 가까운 앵커에 배정
   function nearestIdx(y) {
@@ -111,20 +111,21 @@ async function parsePdfToText(file) {
 
   for (const item of dataItems) {
     const col = colOf(item.x);
-    if (col === 'no' || col === 'desc') continue;
+    if (col === 'no') continue;
     const ai = nearestIdx(item.y);
     if (ai < 0) continue;
     if (col === 'date') anchors[ai].dateParts.push(item);
-    else anchors[ai][col].push(item);
+    else anchors[ai][col].push(item);   // hall / equip / desc
   }
 
-  // 5. 탭 구분 출력
-  const lines = ['Date\tDatahall\tSystem / Equipment'];
+  // 5. 탭 구분 출력 (Description 포함 → 'Monthly' 판별에 사용)
+  const lines = ['Date\tDatahall\tSystem / Equipment\tDescription'];
   for (const a of anchors) {
     const dateText = a.dateParts.sort((p,q) => (q.y-p.y)||(p.x-q.x)).map(i => i.text).join(' ');
     const hall     = a.hall.sort( (p,q) => (q.y-p.y)||(p.x-q.x)).map(i => i.text).join(' ');
     const equip    = a.equip.sort((p,q) => (q.y-p.y)||(p.x-q.x)).map(i => i.text).join(' ');
-    if (hall || equip) lines.push(`${dateText}\t${hall}\t${equip}`);
+    const desc     = a.desc.sort( (p,q) => (q.y-p.y)||(p.x-q.x)).map(i => i.text).join(' ');
+    if (hall || equip) lines.push(`${dateText}\t${hall}\t${equip}\t${desc}`);
   }
 
   return lines.join('\n');
@@ -215,6 +216,17 @@ function parseDate(raw) {
   return null;
 }
 
+// Description에 'Monthly'가 포함돼 있으면 장비명 뒤에 'Monthly'를 붙인다.
+// 예: equipment "CRAC" + description에 Monthly 포함 → "CRAC Monthly" (대소문자 무시, 중복 방지)
+function applyMonthly(equipment, description) {
+  const equip = (equipment || '').trim();
+  if (!equip) return equip;
+  if (/monthly/i.test(description || '') && !/monthly/i.test(equip)) {
+    return equip + ' Monthly';
+  }
+  return equip;
+}
+
 // 연속된 날짜(달력상 바로 다음 날)끼리 묶음. 주말·공휴일이 빠지면 자연히 끊겨 주 단위 블록이 된다.
 function groupConsecutive(dates) {
   const groups = [];
@@ -303,10 +315,12 @@ function parseLineFormat(lines) {
     // Equipment
     const rawEquip = (i < data.length && !isRowNum(data[i])) ? data[i++] : '';
 
-    // Description (skip, may be multi-line)
-    while (i < data.length && !isRowNum(data[i])) i++;
+    // Description (다음 행 번호 전까지, 여러 줄일 수 있음)
+    const descParts = [];
+    while (i < data.length && !isRowNum(data[i])) { descParts.push(data[i]); i++; }
+    const rawDesc = descParts.join(' ').trim();
 
-    if (rawDate || rawEquip) rows.push({ rawDate, rawHall, rawEquip });
+    if (rawDate || rawEquip) rows.push({ rawDate, rawHall, rawEquip, rawDesc });
   }
   return rows;
 }
@@ -323,13 +337,14 @@ function parseTable() {
   if (isTabFormat(raw)) {
     // ── 탭 구분 형식 (엑셀/워드 복사) ──────────────────────
     const rows = raw.split('\n').map(l=>l.trim()).filter(l=>l).map(l=>l.split('\t').map(c=>c.trim()));
-    let dateCol=-1, hallCol=-1, equipCol=-1, headerRow=-1;
+    let dateCol=-1, hallCol=-1, equipCol=-1, descCol=-1, headerRow=-1;
     for (let i=0; i<rows.length; i++) {
       const r = rows[i].map(c=>c.toLowerCase());
       const dI = r.findIndex(c=>c.includes('date'));
       const hI = r.findIndex(c=>c.includes('datahall')||c.includes('data hall'));
       const eI = r.findIndex(c=>c.includes('system')||c.includes('equipment'));
-      if (dI!==-1 && hI!==-1 && eI!==-1) { dateCol=dI; hallCol=hI; equipCol=eI; headerRow=i; break; }
+      const xI = r.findIndex(c=>c.includes('description'));
+      if (dI!==-1 && hI!==-1 && eI!==-1) { dateCol=dI; hallCol=hI; equipCol=eI; descCol=xI; headerRow=i; break; }
     }
     if (headerRow===-1) {
       errEl.innerHTML='헤더 행을 찾을 수 없습니다.<br><strong>Date</strong>, <strong>Datahall</strong>, <strong>System / Equipment</strong> 컬럼이 필요합니다.';
@@ -340,6 +355,7 @@ function parseTable() {
       const row=rows[i];
       if (row.length < 3) continue;
       const rawDate=row[dateCol]||'', rawEquip=row[equipCol]||'';
+      const rawDesc = descCol!==-1 ? (row[descCol]||'') : '';
       let rawHall=row[hallCol]||'';
       if (!rawHall && !rawEquip) continue;
       if (rawHall) lastHall = rawHall;
@@ -347,7 +363,7 @@ function parseTable() {
       let dateObj = rawDate ? parseDate(rawDate) : lastDate;
       if (!dateObj) { console.warn('[MOP] 날짜 파싱 실패:', rawDate); continue; }
       lastDate = dateObj;
-      EVENTS.push({no:EVENTS.length+1, startDate:dateObj.start, endDate:dateObj.end, isRange:dateObj.isRange, datahall:rawHall, equipment:rawEquip});
+      EVENTS.push({no:EVENTS.length+1, startDate:dateObj.start, endDate:dateObj.end, isRange:dateObj.isRange, datahall:rawHall, equipment:applyMonthly(rawEquip, rawDesc)});
     }
   } else {
     // ── 줄 단위 형식 (메일 복사) ───────────────────────────
@@ -361,7 +377,7 @@ function parseTable() {
       let dateObj = p.rawDate ? parseDate(p.rawDate) : lastDate;
       if (!dateObj) { console.warn('[MOP] 날짜 파싱 실패:', p.rawDate); continue; }
       lastDate = dateObj;
-      EVENTS.push({no:EVENTS.length+1, startDate:dateObj.start, endDate:dateObj.end, isRange:dateObj.isRange, datahall:p.rawHall, equipment:p.rawEquip});
+      EVENTS.push({no:EVENTS.length+1, startDate:dateObj.start, endDate:dateObj.end, isRange:dateObj.isRange, datahall:p.rawHall, equipment:applyMonthly(p.rawEquip, p.rawDesc)});
     }
   }
 

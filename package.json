@@ -1,6 +1,6 @@
 {
   "name": "mop-calendar",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "MOP Google Calendar 자동 등록 프로그램",
   "main": "main.js",
   "scripts": {

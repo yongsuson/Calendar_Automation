@@ -127,6 +127,10 @@
     <div class="event-grid" id="eventGrid"></div>
 
     <hr class="divider">
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:13px;color:var(--text);cursor:pointer;">
+      <input type="checkbox" id="dedupCheck" checked style="width:auto;accent-color:var(--accent);cursor:pointer;">
+      이미 등록된 동일 일정은 건너뛰기 <span style="color:var(--muted);">(중복 방지)</span>
+    </label>
     <button class="btn btn-primary" id="registerBtn" onclick="startRegistration()">▶ Google 캘린더에 등록</button>
 
     <div class="progress-wrap" id="progressWrap" style="display:none;"><div class="progress-bar" id="progressBar"></div></div>
@@ -135,6 +139,7 @@
 
     <div class="summary-stats" id="summaryStats" style="display:none;">
       <div class="stat-box"><div class="stat-num" id="statOk" style="color:var(--success)">0</div><div class="stat-label">등록 성공</div></div>
+      <div class="stat-box"><div class="stat-num" id="statSkip" style="color:var(--muted)">0</div><div class="stat-label">중복 건너뜀</div></div>
       <div class="stat-box"><div class="stat-num" id="statErr" style="color:var(--danger)">0</div><div class="stat-label">등록 실패</div></div>
       <div class="stat-box"><div class="stat-num" id="statTotal" style="color:var(--accent)">0</div><div class="stat-label">전체 일정</div></div>
     </div>

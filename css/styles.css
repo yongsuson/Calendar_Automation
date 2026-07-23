@@ -90,7 +90,7 @@
   .log-box{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.8;max-height:200px;overflow-y:auto;color:var(--muted);}
   .log-ok{color:var(--success);}
   .log-err{color:var(--danger);}
-  .summary-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;}
+  .summary-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;}
   .stat-box{background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:16px;text-align:center;}
   .stat-num{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;}
   .stat-label{font-size:11px;color:var(--muted);margin-top:4px;}
